@@ -1,15 +1,11 @@
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Form, BackgroundTasks
 from sqlalchemy.orm import Session
 from dependencies import get_db
-from aircraft.crud import create_aircraft_from_json
-import json
 from typing import List
 from aircraft import crud as aircraft_crud
 from aircraft.schemas import BulkDeleteAircraftRequest, DeleteAircraftRequest, BulkApproveAircraftRequest, UpdateAircraftRequest
-from fastapi.responses import JSONResponse
 from aircraft.models import Aircraft
 from datetime import datetime
-from database import SessionLocal
 import uuid
 from aircraft.crud import process_aircraft_upload, aircraft_import_jobs
 

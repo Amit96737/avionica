@@ -69,7 +69,7 @@ def process_aircraft_upload(
                     manufacturer_id=manufacturer_id,
                 )
 
-                # for i in range(1, 1001):
+                # for i in range(1, 101):
                 #     aircraft = create_aircraft_from_json(
                 #         db=db,
                 #         data=data,
