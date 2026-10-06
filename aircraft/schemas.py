@@ -11,7 +11,7 @@ class Passengers(BaseModel):
 class IdentificationClassification(BaseModel):
     ICAO_Type_Code: str
     Manufacturer: Optional[str] = ""
-    manufacturer_id: Optional[str]
+    manufacturer_id: Optional[str] = None
     Aircraft_Model: str
     Aircraft_Role: str
     Aircraft_Type: str
@@ -152,8 +152,15 @@ class LandingGear(BaseModel):
     Type: str
     Number_of_Wheels: str
     Tyre_Size_inches: str
-    Tyre_Pressure_bar_psi: str
-    model_config = ConfigDict(from_attributes=True)
+    Tyre_Pressure_bar_psi: str = Field(
+        ...,
+        validation_alias="Tyre_Pressure_bar_(psi)"
+    )
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True
+    )
 
 
 class CertificationEnvironmental(BaseModel):

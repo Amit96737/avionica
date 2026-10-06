@@ -8,8 +8,12 @@ from services.s3 import upload_image_to_s3
 from urllib.parse import unquote
 from database import SessionLocal
 import json
+from pydantic import ValidationError
+from aircraft.schemas import AircraftData
+
 
 aircraft_import_jobs = {}
+
 
 def process_aircraft_upload(
     task_id: str,
@@ -106,14 +110,27 @@ def process_aircraft_upload(
         if not successful_files:
             db.rollback()
 
+            error_messages = [
+                result["message"]
+                for result in failed_files
+                if result.get("message")
+            ]
+
             aircraft_import_jobs[task_id] = {
                 "status": "failed",
-                "message": "No aircraft were uploaded.",
+                "message": error_messages[0]
+                if error_messages
+                else "No aircraft were uploaded.",
                 "successful_files": 0,
                 "failed_files": len(failed_files),
             }
 
-            print("No aircraft were uploaded.")
+            print(
+                error_messages[0]
+                if error_messages
+                else "No aircraft were uploaded."
+            )
+
             return
 
         try:
@@ -167,6 +184,32 @@ def create_aircraft_from_json(
     manufacturer_id: str,
     # model_suffix: int,
 ):
+    try:
+        validated_data = AircraftData.model_validate(data)
+    except ValidationError as e:
+        missing_fields = []
+
+        for error in e.errors():
+            field = ".".join(
+                str(location)
+                for location in error["loc"]
+            )
+
+            if error["type"] == "missing":
+                missing_fields.append(
+                    f"{field} is required"
+                )
+            else:
+                missing_fields.append(
+                    f"{field}: {error['msg']}"
+                )
+
+        raise ValueError(
+            "Invalid aircraft data: "
+            + ", ".join(missing_fields)
+        )
+        
+        
     manufacturer = (
         db.query(Manufacturer)
         .filter(
@@ -233,9 +276,7 @@ def create_aircraft_from_json(
 
     existing_aircraft = (
         db.query(Aircraft)
-        .filter(
-            Aircraft.Aircraft_Model == aircraft_model
-        )
+        .filter(Aircraft.Aircraft_Model == aircraft_model)
         .first()
     )
 
@@ -656,7 +697,7 @@ def upload_aircraft_images_background(
                 try:
                     s3_image_url = upload_image_to_s3(
                         image_url,
-                        folder="aircraft"
+                        folder="test_folder"
                     )
 
                     if s3_image_url:

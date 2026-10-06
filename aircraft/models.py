@@ -111,3 +111,4 @@ class Aircraft(CommonFields, Base):
     def normalize_model(self, key, value: str):
         self.model_normalized = value.lower()
         return value
+

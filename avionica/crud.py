@@ -425,13 +425,16 @@ def upload_manufacturer_logos_background(
 
         for manufacturer in manufacturers:
 
-            if not manufacturer.logo:
+            if (
+                not manufacturer.logo
+                or manufacturer.logo == DEFAULT_MANUFACTURER_LOGO
+            ):
                 continue
 
             try:
                 s3_image_url = upload_image_to_s3(
                     manufacturer.logo,
-                    folder="manufacturer"
+                    folder="test_folder"
                 )
 
                 if s3_image_url:
