@@ -238,11 +238,26 @@ async def upload_manufacturer_csv(
             detail="Only CSV files are allowed"
         )
 
+    # content = await file.read()
+
+    # csv_file = io.StringIO(
+    #     content.decode("utf-8-sig")
+    # )
+    
     content = await file.read()
 
-    csv_file = io.StringIO(
-        content.decode("utf-8-sig")
-    )
+    try:
+        decoded_content = content.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        try:
+            decoded_content = content.decode("cp1252")
+        except UnicodeDecodeError:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid CSV encoding. Please upload a UTF-8 CSV file."
+            )
+
+    csv_file = io.StringIO(decoded_content)
 
     reader = csv.DictReader(csv_file)
 

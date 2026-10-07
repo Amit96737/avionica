@@ -63,7 +63,7 @@ def process_aircraft_upload(
                     continue
 
                 if "Identification_Classification" not in data:
-                    result["message"] = "Wrong JSON file"
+                    result["message"] = "Invalid aircraft data: Identification_Classification is required"
                     results.append(result)
                     continue
 

@@ -43,7 +43,7 @@ async def upload_manufacturer_csv(
 
 
 
-@router.get("/manufacturer/", tags=["Manufacturer"])
+@router.get("/manufacturer-details/", tags=["Manufacturer"])
 async def get_manufacturer(
     db: Session = Depends(get_db)
 ):

@@ -11,6 +11,7 @@ from alembic import context
 from common.models import CommonFields
 from avionica.models import Manufacturer
 from aircraft.models import Aircraft
+from airport.models import AirportData
 
 SQLALCHEMY_DATABASE_URL = os.getenv('DATABASE_URL')
 # this is the Alembic Config object, which provides

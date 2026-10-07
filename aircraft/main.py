@@ -75,7 +75,7 @@ async def upload_aircraft_json(
 
 
     
-@router.get("/aircraft/", tags=["Aircraft"])
+@router.get("/aircraft-details/", tags=["Aircraft"])
 async def get_aircraft(
     db: Session = Depends(get_db)
 ):
