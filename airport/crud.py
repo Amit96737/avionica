@@ -328,14 +328,22 @@ def process_airport_upload(files_data, task_id):
         
         
         
-def get_airport(db: Session):
+def get_airport(db: Session, pagination):
     airport_data = (
         db.query(AirportData)
         .order_by(AirportData.name.asc())
-        .all()
     )
+    
+    total_count = airport_data.count()
+    
+    paginated_query = pagination.paginate_query(airport_data)
+    
+    airport = paginated_query.all()
 
-    return airport_data
+    return pagination.get_paginated_response(
+        airport,
+        total_count,
+        detail="Airport fetched successfully.")
         
 
 

@@ -10,6 +10,7 @@ from datetime import datetime
 import json
 import uuid
 from airport.helper import REQUIRED_AIRPORT_FIELDS
+from utils.pagination import PageNumberPagination
 
 
 router = APIRouter(
@@ -37,9 +38,10 @@ async def get_airport_upload_status(task_id: str):
 
 @router.get("/airport-details/", tags=["Airport"])
 async def get_airport(
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    pagination: PageNumberPagination = Depends(),
 ):
-    return airport_crud.get_airport(db)
+    return airport_crud.get_airport(db, pagination=pagination)
 
 
 
