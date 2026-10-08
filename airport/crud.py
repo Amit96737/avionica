@@ -3,6 +3,8 @@ from airport.models import AirportData
 import json
 from database import SessionLocal
 from fastapi import HTTPException
+from datetime import datetime
+
 
 airport_import_jobs = {}
 
@@ -14,6 +16,13 @@ def process_airport_upload(files_data, task_id):
     inserted_count = 0
     updated_count = 0
     failed_count = 0
+    
+    invalid_file_details = airport_import_jobs[task_id].get(
+    "invalid_file_details",
+    []
+    )
+
+    invalid_files_count = len(invalid_file_details)
 
     inserted_airports = []
     already_exists_files = []
@@ -87,31 +96,6 @@ def process_airport_upload(files_data, task_id):
 
                 iata_code = codes.get("code")
                 icao_code = codes.get("icao")
-
-                existing_airport = None
-
-                if iata_code and icao_code:
-
-                    existing_airport = (
-                        db.query(AirportData)
-                        .filter(
-                            AirportData.iata_code == iata_code,
-                            AirportData.icao == icao_code
-                        )
-                        .first()
-                    )
-
-                if existing_airport:
-
-                    already_exists_files.append(
-                        file_name
-                    )
-
-                    print(
-                        f"ALREADY EXISTS: {file_name}"
-                    )
-
-                    continue
 
                 airport_data = {
 
@@ -192,6 +176,122 @@ def process_airport_upload(files_data, task_id):
                     "airport_weather": None,
                 }
 
+                existing_airport = None
+
+                if iata_code and icao_code:
+
+                    existing_airport = (
+                        db.query(AirportData)
+                        .filter(
+                            AirportData.iata_code == iata_code,
+                            AirportData.icao == icao_code
+                        )
+                        .first()
+                    )
+
+                # if existing_airport:
+
+                #     already_exists_files.append(
+                #         file_name
+                #     )
+
+                #     print(
+                #         f"ALREADY EXISTS: {file_name}"
+                #     )
+
+                #     for field, value in airport_data.items():
+                #         setattr(
+                #             existing_airport,
+                #             field,
+                #             value
+                #         )
+
+                #     db.commit()
+
+                #     inserted_airports.append({
+                #         "id": existing_airport.id,
+                #         "name": existing_airport.name,
+                #         "type": existing_airport.type,
+                #         "website_url": existing_airport.website_url,
+                #         "latitude_deg": existing_airport.latitude_deg,
+                #         "longitude_deg": existing_airport.longitude_deg,
+                #         "city": existing_airport.city,
+                #         "state": existing_airport.state,
+                #         "country": existing_airport.country,
+                #         "timezone": existing_airport.timezone,
+                #         "utc_offset": existing_airport.utc_offset,
+                #         "iata_code": existing_airport.iata_code,
+                #         "icao": existing_airport.icao,
+                #         "number_of_runways": existing_airport.number_of_runways,
+                #         "runway_direction": existing_airport.runway_direction,
+                #         "runway_length": existing_airport.runway_length,
+                #         "elev": existing_airport.elev,
+                #         "runway_surface_type": existing_airport.runway_surface_type,
+                #         "number_of_terminals": existing_airport.number_of_terminals,
+                #         "annual_movements": existing_airport.annual_movements,
+                #         "annual_passenger_traffic": existing_airport.annual_passenger_traffic,
+                #         "airport_weather": existing_airport.airport_weather,
+                #         "is_approved": existing_airport.is_approved,
+                #     })
+
+                #     updated_count += 1
+
+                #     print(
+                #         f"UPDATED AIRPORT: {file_name}"
+                #     )
+
+                #     continue
+                if existing_airport:
+                    # Check whether uploaded data is exactly same
+                    is_same_data = all(
+                        getattr(existing_airport, field) == value
+                        for field, value in airport_data.items()
+                    )
+
+                    if is_same_data:
+                        already_exists_files.append(file_name)
+
+                        print(f"ALREADY EXISTS: {file_name}")
+
+                        continue
+
+                    # Same airport exists but data has changed
+                    for field, value in airport_data.items():
+                        setattr(existing_airport, field, value)
+
+                    db.commit()
+
+                    updated_count += 1
+
+                    inserted_airports.append({
+                        "id": existing_airport.id,
+                        "name": existing_airport.name,
+                        "type": existing_airport.type,
+                        "website_url": existing_airport.website_url,
+                        "latitude_deg": existing_airport.latitude_deg,
+                        "longitude_deg": existing_airport.longitude_deg,
+                        "city": existing_airport.city,
+                        "state": existing_airport.state,
+                        "country": existing_airport.country,
+                        "timezone": existing_airport.timezone,
+                        "utc_offset": existing_airport.utc_offset,
+                        "iata_code": existing_airport.iata_code,
+                        "icao": existing_airport.icao,
+                        "number_of_runways": existing_airport.number_of_runways,
+                        "runway_direction": existing_airport.runway_direction,
+                        "runway_length": existing_airport.runway_length,
+                        "elev": existing_airport.elev,
+                        "runway_surface_type": existing_airport.runway_surface_type,
+                        "number_of_terminals": existing_airport.number_of_terminals,
+                        "annual_movements": existing_airport.annual_movements,
+                        "annual_passenger_traffic": existing_airport.annual_passenger_traffic,
+                        "airport_weather": existing_airport.airport_weather,
+                        "is_approved": existing_airport.is_approved,
+                    })
+
+                    print(f"UPDATED AIRPORT: {file_name}")
+
+                    continue
                 airport = AirportData(
                     **airport_data
                 )
@@ -297,10 +397,20 @@ def process_airport_upload(files_data, task_id):
             "updated_count": updated_count,
             "already_exists_count": len(already_exists_files),
             "failed_count": failed_count,
+
+            "valid_files": airport_import_jobs[task_id].get(
+                "valid_files",
+                0
+            ),
+
+            "invalid_files": invalid_files_count,
+
+            "invalid_file_details": invalid_file_details,
+
             "inserted_airports": inserted_airports,
             "already_exists_files": already_exists_files,
-            "message":
-                "Airport upload completed successfully."
+
+            "message": "Airport upload completed successfully."
         })
 
     except Exception as error:
@@ -335,9 +445,7 @@ def get_airport(db: Session, pagination):
     )
     
     total_count = airport_data.count()
-    
     paginated_query = pagination.paginate_query(airport_data)
-    
     airport = paginated_query.all()
 
     return pagination.get_paginated_response(
@@ -390,7 +498,6 @@ async def bulk_delete_airport(
         )
 
     deleted_ids = [airport.id for airport in airport_data]
-
     for airport in airport_data:
         db.delete(airport)
 
@@ -403,6 +510,43 @@ async def bulk_delete_airport(
     }
 
 
+
+async def bulk_approve_airport(
+    db: Session,
+    airport_ids: list[str]
+):
+    airport_data = (
+        db.query(AirportData)
+        .filter(AirportData.id.in_(airport_ids))
+        .all()
+    )
+
+    if not airport_data:
+        raise HTTPException(
+            status_code=404,
+            detail="Aircraft not found"
+        )
+
+    for airport in airport_data:
+        airport.is_approved = True
+        airport.is_approved_time = datetime.utcnow()
+
+    db.commit()
+
+    return {
+        "message": "Airport Approved successfully",
+        "updated_count": len(airport_data),
+        "airport": [
+            {
+                "id": airport.id,
+                "is_approved": airport.is_approved,
+                "is_approved_time": airport.is_approved_time
+            }
+            for airport in airport_data
+        ]
+    }
+    
+    
 
 async def bulk_disapprove_airport(
     db: Session,
@@ -437,3 +581,5 @@ async def bulk_disapprove_airport(
             for airport in airport_data
         ]
     }
+    
+    

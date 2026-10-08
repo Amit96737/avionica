@@ -5,12 +5,11 @@ from airport import crud as airport_crud
 from typing import List
 from airport.crud import process_airport_upload, airport_import_jobs
 from airport.schemas import DeleteAirportRequest, BulkDeleteAirportRequest, BulkApproveAirportRequest
-from airport.models import AirportData
-from datetime import datetime
 import json
 import uuid
 from airport.helper import REQUIRED_AIRPORT_FIELDS
 from utils.pagination import PageNumberPagination
+from airport.validators import validate_airport_json_types
 
 
 router = APIRouter(
@@ -51,16 +50,20 @@ async def upload_airport_json(
     files: List[UploadFile] = File(...),
 ):
     files_data = []
-    
+    invalid_files = []
+
     task_id = str(uuid.uuid4())
 
     for file in files:
 
-        if not file.filename.lower().endswith(".json"):
-            raise HTTPException(
-                status_code=400,
-                detail=f"{file.filename}: Only JSON files are allowed."
-            )
+        file_name = file.filename
+
+        if not file_name.lower().endswith(".json"):
+            invalid_files.append({
+                "file_name": file_name,
+                "error": "Only JSON files are allowed."
+            })
+            continue
 
         content = await file.read()
 
@@ -68,25 +71,41 @@ async def upload_airport_json(
             data = json.loads(content.decode("utf-8"))
 
         except UnicodeDecodeError:
-            raise HTTPException(
-                status_code=400,
-                detail=f"{file.filename}: File must be UTF-8 encoded JSON."
-            )
+            invalid_files.append({
+                "file_name": file_name,
+                "error": "File must be UTF-8 encoded JSON."
+            })
+            continue
 
         except json.JSONDecodeError as e:
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    f"Invalid JSON format "
-                    f"at line {e.lineno}, column {e.colno}."
+            invalid_files.append({
+                "file_name": file_name,
+                "error": (
+                    f"Invalid JSON format: "
+                    f"line {e.lineno}, column {e.colno}: "
+                    f"{e.msg}"
                 )
-            )
+            })
+            continue
 
         if not isinstance(data, dict):
-            raise HTTPException(
-                status_code=400,
-                detail=f"{file.filename}: JSON root must be an object."
-            )
+            invalid_files.append({
+                "file_name": file_name,
+                "error": "JSON root must be an object."
+            })
+            continue
+
+        type_errors = validate_airport_json_types(data)
+
+        if type_errors:
+            invalid_files.append({
+                "file_name": file_name,
+                "error": (
+                    "Invalid field type(s): "
+                    + " | ".join(type_errors)
+                )
+            })
+            continue
 
         missing_fields = []
 
@@ -120,29 +139,43 @@ async def upload_airport_json(
                     )
 
         if missing_fields:
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    f"Required field(s) "
-                    f"missing: "
+            invalid_files.append({
+                "file_name": file_name,
+                "error": (
+                    "Required field(s) missing: "
                     + ", ".join(missing_fields)
                 )
-            )
+            })
+            continue
 
         files_data.append({
-            "file_name": file.filename,
+            "file_name": file_name,
             "content": content,
         })
 
-    airport_import_jobs[task_id] = {
-    "status": "processing",
-    "total_files": len(files),
-    "inserted_count": 0,
-    "updated_count": 0,
-    "failed_count": 0,
-    "message": "Airport upload started in background."
-    }
+    if not files_data:
 
+        return {
+            "success": False,
+            "task_id": None,
+            "total_files": len(files),
+            "valid_files": 0,
+            "invalid_files": len(invalid_files),
+            "invalid_file_details": invalid_files,
+            "message": "No valid airport files found."
+        }
+
+    airport_import_jobs[task_id] = {
+        "status": "processing",
+        "total_files": len(files),
+        "valid_files": len(files_data),
+        "invalid_files": len(invalid_files),
+        "inserted_count": 0,
+        "updated_count": 0,
+        "failed_count": 0,
+        "invalid_file_details": invalid_files,
+        "message": "Airport upload started in background."
+    }
 
     background_tasks.add_task(
         process_airport_upload,
@@ -154,8 +187,11 @@ async def upload_airport_json(
         "success": True,
         "task_id": task_id,
         "total_files": len(files),
-        "message": "Airport upload started in background.",
-    }
+        "valid_files": len(files_data),
+        "invalid_files": len(invalid_files),
+        "invalid_file_details": invalid_files,
+        "message": "Airport upload started in background."
+    }  
     
     
     
@@ -182,36 +218,16 @@ async def bulk_delete_airport(
     )
     
     
-
+    
 @router.patch("/bulk-approve-airport/", tags=["Airport"])
 async def bulk_approve_airport(
     request: BulkApproveAirportRequest,
-    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
-    airport_data = (
-        db.query(AirportData)
-        .filter(AirportData.id.in_(request.airport_ids))
-        .all()
+    return await airport_crud.bulk_approve_airport(
+        db,
+        request.airport_ids
     )
-
-    if not airport_data:
-        raise HTTPException(
-            status_code=404,
-            detail="Airport not found."
-        )
-
-    for airport in airport_data:
-        airport.is_approved = True
-        airport.is_approved_time = datetime.utcnow()
-
-    db.commit()
-    
-    return {
-        "success": True,
-        "message": "Airport approved successfully.",
-        "total": len(airport_data)
-    }
     
     
     
