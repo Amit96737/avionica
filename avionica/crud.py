@@ -10,7 +10,7 @@ from avionica.models import Product
 from services.s3 import upload_image_to_s3
 from database import SessionLocal
 import uuid
-
+from pydantic import ValidationError
 
 manufacturer_import_jobs = {}
 
@@ -323,6 +323,33 @@ async def upload_manufacturer_csv(
                 "errors": error_messages
             }
         )
+        
+        
+    founding_year_errors = []
+
+    for row_number, row in enumerate(rows, start=2):
+        founding_year = row.get("founding_year")
+
+        if founding_year is not None:
+            founding_year = str(founding_year).strip()
+
+        if founding_year:
+            try:
+                int(founding_year)
+            except ValueError:
+                founding_year_errors.append(
+                    f"Row {row_number}: founding_year: Input should be a valid integer"
+                )
+
+    if founding_year_errors:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": "CSV contains invalid field values.",
+                "errors": founding_year_errors
+            }
+        )
+    
         
     task_id = str(uuid.uuid4())
 

@@ -11,221 +11,126 @@ from triviagia.mapping import REQUIRED_AVIATION_CHRONICLE_CSV_COLUMNS
 
 
 aviation_chronicle_import_jobs = {}
-
-
-async def get_aviation_chronicle(db: Session, pagination):
-    aviationChronicle = (
-        db.query(AviationChronicle)
-        .order_by(AviationChronicle.title.asc())
-    )
-    
-    total_count = aviationChronicle.count()
-    paginated_query = pagination.paginate_query(aviationChronicle)
-    aviation = paginated_query.all()
-
-    return pagination.get_paginated_response(
-        aviation,
-        total_count,
-        detail="Aviation Chronicle fetched successfully.")
     
 
 
-# def process_manufacturer_csv(rows, task_id):
+def process_aviation_chronicle_csv(rows, task_id):
 
-#     db = SessionLocal()
+    db = SessionLocal()
 
-#     try:
+    try:
 
-#         inserted_count = 0
-#         updated_count = 0
-#         uploaded_aviation_chronicle_ids = []
+        inserted_count = 0
+        updated_count = 0
+        uploaded_aviation_chronicle_ids = []
 
-#         for row in rows:
+        for row in rows:
 
-#             aviation_chronicle_data = {}
+            aviation_chronicle_data = {}
 
-#             for csv_column, model_column in REQUIRED_AVIATION_CHRONICLE_CSV_COLUMNS.items():
+            for csv_column, model_column in REQUIRED_AVIATION_CHRONICLE_CSV_COLUMNS.items():
 
-#                 value = row.get(csv_column)
+                value = row.get(csv_column)
 
-#                 if value is not None:
-#                     value = value.strip()
+                if value is not None:
+                    value = value.strip()
 
-#                 aviation_chronicle_data[model_column] = value
+                aviation_chronicle_data[model_column] = value
 
-#             title = manufacturer_data.get(
-#                 "interesting_facts"
-#             )
+            title = aviation_chronicle_data.get(
+                "title"
+            )
 
-#             if interesting_facts:
-#                 manufacturer_data["interesting_facts"] = [
-#                     fact.strip()
-#                     for fact in interesting_facts.split("\n\n")
-#                     if fact.strip()
-#                 ]
+            description = aviation_chronicle_data.get(
+                "description"
+            )
 
-#             company_name = manufacturer_data.get("company_name")
+            existing_aviation_chronicle = (
+                db.query(AviationChronicle)
+                .filter(
+                    AviationChronicle.title == title
+                )
+                .first()
+            )
 
-#             if not company_name:
-#                 continue
+            if existing_aviation_chronicle:
 
-#             manufacturer = (
-#                 db.query(Manufacturer)
-#                 .filter(
-#                     Manufacturer.company_name == company_name
-#                 )
-#                 .first()
-#             )
+                has_changes = False
 
-#             if manufacturer:
+                if existing_aviation_chronicle.description != description:
 
-#                 has_changes = False
+                    existing_aviation_chronicle.description = description
 
-#                 for field, new_value in manufacturer_data.items():
+                    has_changes = True
 
-#                     if field == "company_name":
-#                         continue
+                if has_changes:
 
-#                     if new_value is None or new_value == "":
-#                         continue
+                    updated_count += 1
 
-#                     old_value = getattr(
-#                         manufacturer,
-#                         field,
-#                         None
-#                     )
+                aviation_chronicle_id = (
+                    existing_aviation_chronicle.id
+                )
 
-#                     if old_value != new_value:
+            else:
 
-#                         setattr(
-#                             manufacturer,
-#                             field,
-#                             new_value
-#                         )
+                aviation_chronicle = AviationChronicle(
+                    **aviation_chronicle_data
+                )
 
-#                         has_changes = True
+                db.add(aviation_chronicle)
 
-#                 if has_changes:
-#                     updated_count += 1
+                db.flush()
 
-#             else:
+                inserted_count += 1
 
-#                 manufacturer = Manufacturer(
-#                     **manufacturer_data
-#                 )
+                aviation_chronicle_id = (
+                    aviation_chronicle.id
+                )
 
-#                 db.add(manufacturer)
-#                 db.flush()
+            if (
+                aviation_chronicle_id
+                not in uploaded_aviation_chronicle_ids
+            ):
 
-#                 inserted_count += 1
+                uploaded_aviation_chronicle_ids.append(
+                    aviation_chronicle_id
+                )
 
-#             if manufacturer.id not in uploaded_manufacturer_ids:
-#                 uploaded_manufacturer_ids.append(
-#                     manufacturer.id
-#                 )
+        db.commit()
 
-#             products_1 = row.get("products 1 ")
+        aviation_chronicle_import_jobs[task_id] = {
+            "status": "completed",
+            "inserted_records": inserted_count,
+            "updated_records": updated_count,
+            "uploaded_aviation_chronicle_ids":
+                uploaded_aviation_chronicle_ids
+        }
 
-#             if products_1:
+        print(
+            f"Aviation Chronicle import completed. "
+            f"Inserted: {inserted_count}, "
+            f"Updated: {updated_count}"
+        )
 
-#                 airplane_data = [
-#                     item.strip()
-#                     for item in products_1.split(",")
-#                     if item.strip()
-#                 ]
+    except Exception as e:
 
-#                 existing_product = (
-#                     db.query(Product)
-#                     .filter(
-#                         Product.manufacturer_id == manufacturer.id,
-#                         Product.series == "Airplane"
-#                     )
-#                     .first()
-#                 )
+        db.rollback()
 
-#                 if existing_product:
+        aviation_chronicle_import_jobs[task_id] = {
+            "status": "failed",
+            "inserted_records": 0,
+            "updated_records": 0,
+            "uploaded_aviation_chronicle_ids": [],
+            "message":
+                "Failed to import Aviation Chronicle data"
+        }
 
-#                     if existing_product.data != airplane_data:
-#                         existing_product.data = airplane_data
+        print(
+            f"Failed to import Aviation Chronicle data: {e}"
+        )
 
-#                 else:
-
-#                     product = Product(
-#                         series="Airplane",
-#                         data=airplane_data,
-#                         manufacturer_id=manufacturer.id
-#                     )
-
-#                     db.add(product)
-
-#             products_2 = row.get("products 2")
-
-#             if products_2:
-
-#                 helicopter_data = [
-#                     item.strip()
-#                     for item in products_2.split(",")
-#                     if item.strip()
-#                 ]
-
-#                 existing_product = (
-#                     db.query(Product)
-#                     .filter(
-#                         Product.manufacturer_id == manufacturer.id,
-#                         Product.series == "Helicopter"
-#                     )
-#                     .first()
-#                 )
-
-#                 if existing_product:
-
-#                     if existing_product.data != helicopter_data:
-#                         existing_product.data = helicopter_data
-
-#                 else:
-
-#                     product = Product(
-#                         series="Helicopter",
-#                         data=helicopter_data,
-#                         manufacturer_id=manufacturer.id
-#                     )
-
-#                     db.add(product)
-
-#         db.commit()
-
-#         aviation_chronicle_import_jobs[task_id] = {
-#             "status": "completed",
-#             "inserted_records": inserted_count,
-#             "updated_records": updated_count,
-#             "manufacturer_ids": uploaded_manufacturer_ids
-#         }
-
-#         print(
-#             f"Manufacturer import completed. "
-#             f"Inserted: {inserted_count}, "
-#             f"Updated: {updated_count}"
-#         )
-
-#     except Exception as e:
-
-#         db.rollback()
-
-#         aviation_chronicle_import_jobs[task_id] = {
-#             "status": "failed",
-#             "inserted_records": 0,
-#             "updated_records": 0,
-#             "manufacturer_ids": [],
-#             "message": "Failed to import manufacturer data"
-#         }
-
-#         print(
-#             f"Failed to import manufacturer data: {e}"
-#         )
-
-#     finally:
-#         db.close()
-
+    finally:
+        db.close()
 
 
 
@@ -330,11 +235,11 @@ async def upload_aviation_chronicle_csv(
         "manufacturer_ids": []
     }
 
-    # background_tasks.add_task(
-    #     process_aviation_chronicle_csv,
-    #     rows,
-    #     task_id
-    # )
+    background_tasks.add_task(
+        process_aviation_chronicle_csv,
+        rows,
+        task_id
+    )
 
     return {
         "success": True,
@@ -343,6 +248,23 @@ async def upload_aviation_chronicle_csv(
     }
 
 
+
+async def get_aviation_chronicle(db: Session, pagination):
+    aviationChronicle = (
+        db.query(AviationChronicle)
+        .order_by(AviationChronicle.title.asc())
+    )
+    
+    total_count = aviationChronicle.count()
+    paginated_query = pagination.paginate_query(aviationChronicle)
+    aviation = paginated_query.all()
+
+    return pagination.get_paginated_response(
+        aviation,
+        total_count,
+        detail="Aviation Chronicle fetched successfully.")
+    
+    
 
 
 async def delete_aviation_chronicle(
@@ -368,6 +290,7 @@ async def delete_aviation_chronicle(
         "message": "Aviation Chronicle deleted successfully",
         "id": aviation_chronicle_id
     } 
+    
     
     
     
@@ -398,6 +321,7 @@ async def bulk_delete_aviation_chronicle(
         "deleted_count": len(deleted_ids),
         "deleted_ids": deleted_ids,
     }
+
 
 
 
@@ -435,6 +359,7 @@ async def bulk_approve_aviation_chronicle(
             for chronicle in aviation_chronicle
         ]
     }
+    
     
     
 

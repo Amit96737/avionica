@@ -22,7 +22,7 @@ class ImageSchema(BaseModel):
 class ManufacturerIn(BaseModel):
     company_name: str
     headquarter: str
-    founding_date: str
+    founding_date: int
     company_description: str
     company_history: str
     logo: str
