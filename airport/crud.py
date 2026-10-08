@@ -189,60 +189,7 @@ def process_airport_upload(files_data, task_id):
                         .first()
                     )
 
-                # if existing_airport:
-
-                #     already_exists_files.append(
-                #         file_name
-                #     )
-
-                #     print(
-                #         f"ALREADY EXISTS: {file_name}"
-                #     )
-
-                #     for field, value in airport_data.items():
-                #         setattr(
-                #             existing_airport,
-                #             field,
-                #             value
-                #         )
-
-                #     db.commit()
-
-                #     inserted_airports.append({
-                #         "id": existing_airport.id,
-                #         "name": existing_airport.name,
-                #         "type": existing_airport.type,
-                #         "website_url": existing_airport.website_url,
-                #         "latitude_deg": existing_airport.latitude_deg,
-                #         "longitude_deg": existing_airport.longitude_deg,
-                #         "city": existing_airport.city,
-                #         "state": existing_airport.state,
-                #         "country": existing_airport.country,
-                #         "timezone": existing_airport.timezone,
-                #         "utc_offset": existing_airport.utc_offset,
-                #         "iata_code": existing_airport.iata_code,
-                #         "icao": existing_airport.icao,
-                #         "number_of_runways": existing_airport.number_of_runways,
-                #         "runway_direction": existing_airport.runway_direction,
-                #         "runway_length": existing_airport.runway_length,
-                #         "elev": existing_airport.elev,
-                #         "runway_surface_type": existing_airport.runway_surface_type,
-                #         "number_of_terminals": existing_airport.number_of_terminals,
-                #         "annual_movements": existing_airport.annual_movements,
-                #         "annual_passenger_traffic": existing_airport.annual_passenger_traffic,
-                #         "airport_weather": existing_airport.airport_weather,
-                #         "is_approved": existing_airport.is_approved,
-                #     })
-
-                #     updated_count += 1
-
-                #     print(
-                #         f"UPDATED AIRPORT: {file_name}"
-                #     )
-
-                #     continue
                 if existing_airport:
-                    # Check whether uploaded data is exactly same
                     is_same_data = all(
                         getattr(existing_airport, field) == value
                         for field, value in airport_data.items()
@@ -255,7 +202,6 @@ def process_airport_upload(files_data, task_id):
 
                         continue
 
-                    # Same airport exists but data has changed
                     for field, value in airport_data.items():
                         setattr(existing_airport, field, value)
 

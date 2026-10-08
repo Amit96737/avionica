@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, StrictFloat
 from typing import Optional
 from typing import Optional, List
 # from airport.models import AirportCreditType
@@ -46,8 +46,8 @@ class GeneralInformation(BaseModel):
 
 
 class Location(BaseModel):
-    lat: float
-    lon: float
+    lat: StrictFloat
+    lon: StrictFloat
     city: Optional[str]
     state: Optional[str]
     country: str
@@ -119,6 +119,8 @@ class AirportDataResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+# New Schemas
+
 class DeleteAirportRequest(BaseModel):
     airport_id: str
     
@@ -131,6 +133,3 @@ class BulkApproveAirportRequest(BaseModel):
     airport_ids: List[str]
     
 
-# class AirportCreditRequest(BaseModel):
-#     type: AirportCreditType
-#     credit: float

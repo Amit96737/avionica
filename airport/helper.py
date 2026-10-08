@@ -1,14 +1,14 @@
 REQUIRED_AIRPORT_FIELDS = {
     "general_information": [
         "name",
-        "type",
+        # "type",
         # "url",
     ],
     "location": [
         "lat",
         "lon",
-        "city",
-        "state",
+        # "city",
+        # "state",
         "country",
     ],
     "time_information": [
@@ -16,8 +16,8 @@ REQUIRED_AIRPORT_FIELDS = {
         "utc",
     ],
     "codes": [
-        "code",
-        "icao",
+        # "code",
+        # "icao",
     ],
     "runway_information": [
         "number_Runways",

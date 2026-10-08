@@ -4,13 +4,12 @@ from dependencies import get_db
 from airport import crud as airport_crud
 from typing import List
 from airport.crud import process_airport_upload, airport_import_jobs
-from airport.schemas import DeleteAirportRequest, BulkDeleteAirportRequest, BulkApproveAirportRequest
+from airport.schemas import DeleteAirportRequest, BulkDeleteAirportRequest, BulkApproveAirportRequest, AirportNestedRequest
 import json
 import uuid
 from airport.helper import REQUIRED_AIRPORT_FIELDS
 from utils.pagination import PageNumberPagination
-from airport.validators import validate_airport_json_types
-
+from pydantic import ValidationError
 
 router = APIRouter(
     prefix="/airport"
@@ -22,6 +21,8 @@ router = APIRouter(
     tags=["Airport"]
 )
 async def get_airport_upload_status(task_id: str):
+    
+    print("TOTAL JOBS:", len(airport_import_jobs))
 
     job = airport_import_jobs.get(task_id)
 
@@ -94,18 +95,32 @@ async def upload_airport_json(
                 "error": "JSON root must be an object."
             })
             continue
+        
+        try:
+            AirportNestedRequest.model_validate(data)
 
-        type_errors = validate_airport_json_types(data)
+        except ValidationError as e:
 
-        if type_errors:
+            validation_errors = []
+
+            for error in e.errors():
+
+                field_path = ".".join(
+                    str(item)
+                    for item in error["loc"]
+                )
+
+                validation_errors.append(
+                    f"{field_path}: {error['msg']}"
+                )
+
             invalid_files.append({
                 "file_name": file_name,
-                "error": (
-                    "Invalid field type(s): "
-                    + " | ".join(type_errors)
-                )
+                "error": " | ".join(validation_errors)
             })
+
             continue
+
 
         missing_fields = []
 
