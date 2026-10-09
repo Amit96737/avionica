@@ -50,14 +50,6 @@ async def get_manufacturer(
     return await manufacturer_crud.get_manufacture(db)
 
 
-# @router.get("/manufacturer-details/", tags=["Manufacturer"])
-# async def get_manufacturer(
-#     db: Session = Depends(get_db),
-#     pagination: PageNumberPagination = Depends(),
-# ):
-#     return await manufacturer_crud.get_manufacture(db,  pagination=pagination)
-
-
 
 @router.patch("/update-manufacturer/", tags=["Manufacturer"])
 async def update_manufacturer(

@@ -697,7 +697,8 @@ def upload_aircraft_images_background(
                 try:
                     s3_image_url = upload_image_to_s3(
                         image_url,
-                        folder="test_folder"
+                        folder="test_folder",
+                        image_type="aircraft"
                     )
 
                     if s3_image_url:

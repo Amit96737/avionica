@@ -13,6 +13,7 @@ from avionica.models import Manufacturer
 from aircraft.models import Aircraft
 from airport.models import AirportData
 from triviagia.models import AviationChronicle
+from user.models import Glossary
 
 SQLALCHEMY_DATABASE_URL = os.getenv('DATABASE_URL')
 # this is the Alembic Config object, which provides

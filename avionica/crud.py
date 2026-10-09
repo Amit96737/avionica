@@ -383,22 +383,6 @@ async def get_manufacture(db: Session):
 
     return manufacturers
 
-# async def get_manufacture(db: Session, pagination):
-#     manufacturers = (
-#         db.query(Manufacturer)
-#         .order_by(Manufacturer.company_name.asc())
-#     )
-#     total_count = manufacturers.count()
-     
-#     paginated_query = pagination.paginate_query(manufacturers)
-    
-#     manufacturer = paginated_query.all()
-
-#     return pagination.get_paginated_response(
-#         manufacturer,
-#         total_count,
-#         detail="Manufacturers fetched successfully.")
-
 
 
 async def update_manufacturer(
@@ -492,7 +476,8 @@ def upload_manufacturer_logos_background(
             try:
                 s3_image_url = upload_image_to_s3(
                     manufacturer.logo,
-                    folder="test_folder"
+                    folder="test_folder",
+                    image_type="manufacturers"
                 )
 
                 if s3_image_url:

@@ -4,7 +4,6 @@ from dependencies import get_db
 from triviagia import crud as triviagia_crud
 from utils.pagination import PageNumberPagination
 from triviagia.schemas import DeleteChronicleRequest, BulkDeleteChronicleRequest, BulkApproveChronicleRequest
-from triviagia.crud import aviation_chronicle_import_jobs
 
 
 
@@ -20,7 +19,7 @@ router = APIRouter(
 )
 async def get_aviation_chronicle_upload_status(task_id: str):
 
-    job = aviation_chronicle_import_jobs.get(task_id)
+    job = triviagia_crud.aviation_chronicle_import_jobs.get(task_id)
 
     if not job:
         raise HTTPException(
@@ -102,5 +101,4 @@ async def bulk_disapprove_aviation_chronicle(
         db,
         request.aviation_chronicle_ids
     )
-
-
+    

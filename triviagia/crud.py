@@ -1,100 +1,53 @@
 from sqlalchemy.orm import Session
 from triviagia.models import AviationChronicle
-import json
 from database import SessionLocal
 from fastapi import HTTPException, UploadFile, BackgroundTasks
 from datetime import datetime
 import csv
 import io
 import uuid
-from triviagia.mapping import REQUIRED_AVIATION_CHRONICLE_CSV_COLUMNS
 
 
 aviation_chronicle_import_jobs = {}
-    
+
 
 
 def process_aviation_chronicle_csv(rows, task_id):
-
     db = SessionLocal()
 
     try:
-
         inserted_count = 0
         updated_count = 0
         uploaded_aviation_chronicle_ids = []
 
         for row in rows:
 
-            aviation_chronicle_data = {}
-
-            for csv_column, model_column in REQUIRED_AVIATION_CHRONICLE_CSV_COLUMNS.items():
-
-                value = row.get(csv_column)
-
-                if value is not None:
-                    value = value.strip()
-
-                aviation_chronicle_data[model_column] = value
-
-            title = aviation_chronicle_data.get(
-                "title"
-            )
-
-            description = aviation_chronicle_data.get(
-                "description"
-            )
-
-            existing_aviation_chronicle = (
-                db.query(AviationChronicle)
-                .filter(
-                    AviationChronicle.title == title
-                )
-                .first()
-            )
-
-            if existing_aviation_chronicle:
-
-                has_changes = False
-
-                if existing_aviation_chronicle.description != description:
-
-                    existing_aviation_chronicle.description = description
-
-                    has_changes = True
-
-                if has_changes:
-
-                    updated_count += 1
-
-                aviation_chronicle_id = (
-                    existing_aviation_chronicle.id
-                )
+            if "Term" in row and "Definition" in row:
+                title = row.get("Term")
+                description = row.get("Definition")
 
             else:
+                title = row.get("ABBREVIATION")
+                description = row.get("DEFINITION")
 
-                aviation_chronicle = AviationChronicle(
-                    **aviation_chronicle_data
-                )
+            if title is not None:
+                title = title.strip()
 
-                db.add(aviation_chronicle)
+            if description is not None:
+                description = description.strip()
 
-                db.flush()
+            aviation_chronicle = AviationChronicle(
+                title=title,
+                description=description
+            )
 
-                inserted_count += 1
+            db.add(aviation_chronicle)
+            db.flush()
 
-                aviation_chronicle_id = (
-                    aviation_chronicle.id
-                )
-
-            if (
-                aviation_chronicle_id
-                not in uploaded_aviation_chronicle_ids
-            ):
-
-                uploaded_aviation_chronicle_ids.append(
-                    aviation_chronicle_id
-                )
+            inserted_count += 1
+            uploaded_aviation_chronicle_ids.append(
+                aviation_chronicle.id
+            )
 
         db.commit()
 
@@ -102,18 +55,10 @@ def process_aviation_chronicle_csv(rows, task_id):
             "status": "completed",
             "inserted_records": inserted_count,
             "updated_records": updated_count,
-            "uploaded_aviation_chronicle_ids":
-                uploaded_aviation_chronicle_ids
+            "uploaded_aviation_chronicle_ids": uploaded_aviation_chronicle_ids
         }
 
-        print(
-            f"Aviation Chronicle import completed. "
-            f"Inserted: {inserted_count}, "
-            f"Updated: {updated_count}"
-        )
-
     except Exception as e:
-
         db.rollback()
 
         aviation_chronicle_import_jobs[task_id] = {
@@ -121,16 +66,14 @@ def process_aviation_chronicle_csv(rows, task_id):
             "inserted_records": 0,
             "updated_records": 0,
             "uploaded_aviation_chronicle_ids": [],
-            "message":
-                "Failed to import Aviation Chronicle data"
+            "message": "Failed to import Aviation Chronicle data"
         }
 
-        print(
-            f"Failed to import Aviation Chronicle data: {e}"
-        )
+        print(f"Failed to import Aviation Chronicle data: {e}")
 
     finally:
         db.close()
+
 
 
 
@@ -169,24 +112,24 @@ async def upload_aviation_chronicle_csv(
             detail="Invalid CSV format. CSV header is missing."
         )
 
-    csv_headers = {
+    headers = {
         header.strip()
         for header in reader.fieldnames
         if header
     }
 
-    missing_columns = [
-        column
-        for column in REQUIRED_AVIATION_CHRONICLE_CSV_COLUMNS
-        if column not in csv_headers
-    ]
+    format_1 = {"Term", "Definition"}
+    format_2 = {"ABBREVIATION", "DEFINITION"}
 
-    if missing_columns:
+    if not (
+        format_1.issubset(headers)
+        or format_2.issubset(headers)
+    ):
         raise HTTPException(
             status_code=400,
             detail=(
-                "Invalid CSV format missing column(s): "
-                + ", ".join(missing_columns)
+                "Invalid CSV format. Required columns are either "
+                "'Term, Definition' or 'ABBREVIATION, DEFINITION'."
             )
         )
 
@@ -202,29 +145,30 @@ async def upload_aviation_chronicle_csv(
 
     for row_number, row in enumerate(rows, start=2):
 
-        for required_field in REQUIRED_AVIATION_CHRONICLE_CSV_COLUMNS:
+        if format_1.issubset(headers):
+            required_fields = ["Term", "Definition"]
+        else:
+            required_fields = ["ABBREVIATION", "DEFINITION"]
+
+        for required_field in required_fields:
 
             value = row.get(required_field)
 
             if value is None or not str(value).strip():
 
-                if required_field not in validation_errors:
-                    validation_errors.append(required_field)
+                validation_errors.append(
+                    f"Row {row_number}: '{required_field}' is required."
+                )
 
     if validation_errors:
-
-        error_messages = [
-            f"'{field}' is required."
-            for field in validation_errors
-        ]
-
         raise HTTPException(
             status_code=400,
             detail={
                 "message": "CSV contains missing required fields.",
-                "errors": error_messages
+                "errors": validation_errors
             }
         )
+        
         
     task_id = str(uuid.uuid4())
 
@@ -246,6 +190,7 @@ async def upload_aviation_chronicle_csv(
         "task_id": task_id,
         "message": "Aviation Chronicle import started in background."
     }
+
 
 
 
